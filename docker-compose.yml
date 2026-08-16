@@ -1,0 +1,13 @@
+services:
+  postgres_db:
+    image: postgres:18.2
+    environment:
+      POSTGRES_DB: "webhookenginedb"
+      POSTGRES_USER: "user"
+      POSTGRES_PASSWORD: "thisneedstochange"
+    ports:
+      - 5434:5432
+    volumes:
+      - pgdata:/var/lib/postgresql
+volumes:
+  pgdata:
