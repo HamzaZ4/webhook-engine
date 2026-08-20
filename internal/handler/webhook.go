@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/HamzaZ4/webhook-engine/internal/ledger"
 )
 
 type WebhookHandler struct { 
@@ -56,17 +58,23 @@ func (h *WebhookHandler) Handle(w http.ResponseWriter, r *http.Request){
 	}
 	
 
-	
-	_, err = h.DB.Exec(`
+	var webhookEventUUID string
+	err = h.DB.QueryRow(`
 		INSERT INTO webhook_events (payment_event_id, payload, status, request_hash)
 		Values ($1, $2, 'received', $3)
 		ON CONFLICT (payment_event_id) DO NOTHING
-	`, event.ID, payload, hashed_payload)
-
+		RETURNING id
+	`, event.ID, payload, hashed_payload ).Scan(&webhookEventUUID)
 
 	if err != nil {
 		log.Println("Failed to insert event:", err)
 		http.Error(w, "failed to store event", http.StatusInternalServerError)
+		return
+	}
+
+	if err := ledger.WriteLedgerEntries(h.DB, webhookEventUUID, 1000); err != nil {
+		log.Println("Failed to write transaction to the ledger, errors : %w", err )
+		http.Error(w, "Failed to write ledger", http.StatusInternalServerError)
 		return
 	}
 
